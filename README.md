@@ -6,6 +6,11 @@ A partir de *checks* guiados, genera un **score global**, verifica mínimos crí
 
 Además, produce un **plan de acción priorizado**, exportable en **CSV o PDF**, para decisiones rápidas y mejor gobernanza.
 
+<p align="center">
+  <img src="auditoria_agil.png" alt="Auditoría Ágil en Dataiku" width="600"/>
+</p>
+
+
 ---
 
 ## 🎯 Objetivo
