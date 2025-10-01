@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Checklist Dataiku · Formulario + KPIs + Plan de Acción</title>
+  <link rel="stylesheet" href="formulario_style.css" />
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <script defer src="formulario_script.js"></script>
+</head>
+<body>
+  <!-- HEADER actualizado -->
+  <header class="header-intro">
+    <h1>Auditoría ágil en Dataiku</h1>
+    <p class="lead" style="text-align: justify; color: #ffffff;">
+  Este formulario interactivo permite auditar  proyectos en Dataiku de manera ágil y estructurada. 
+  A partir de checks guiados, genera un score global, verifica mínimos críticos (gates) 
+  y calcula métricas clave como cobertura, cumplimiento high, 
+  eficiencia técnica y riesgo operativo. 
+  Además, produce un plan de acción priorizado, exportable en CSV o PDF, 
+  para decisiones rápidas y mejor gobernanza.
+</p>
+  </header>
+
+  <main>
+   
+    <!-- PANEL DE KPIs -->
+    <section class="card kpi-panel">
+      <div class="kpis">
+        <div class="kpi" id="kpiCobertura" title="% de ítems evaluados">
+          <h3>Cobertura de verificación</h3>
+          <div class="val" id="valCobertura">0%</div>
+          <div class="foot" id="footCobertura">0/0 ítems</div>
+        </div>
+        <div class="kpi" id="kpiHigh" title="% de ítems high cumplidos">
+          <h3>Cumplimiento High</h3>
+          <div class="val" id="valHigh">0%</div>
+          <div class="foot" id="footHigh">0/0 high</div>
+        </div>
+        <div class="kpi" id="kpiGates" title="Mínimos por área clave">
+          <h3>Gates</h3>
+          <div class="val" id="valGates">0/0</div>
+          <div class="foot" id="footGates">—</div>
+        </div>
+        <div class="kpi" id="kpiIRO" title="0 = bajo riesgo · 100 = alto riesgo">
+          <h3>Índice de Riesgo Operativo (IRO)</h3>
+          <div class="val" id="valIRO">0</div>
+          <div class="foot">0 = bajo · 100 = alto</div>
+        </div>
+        <div class="kpi" id="kpiBrecha" title="Diferencia media con el benchmark">
+          <h3>Brecha vs Benchmark</h3>
+          <div class="val" id="valBrecha">0%</div>
+          <div class="foot">Promedio de brechas</div>
+        </div>
+        <!-- KPIs cruzados (alto nivel) -->
+        <div class="kpi" id="kpiSEF" title="Motores+Pipelines+Particiones">
+          <h3>Eficiencia técnica</h3>
+          <div class="val" id="valSEF">0%</div>
+          <div class="foot">Motores+Pipelines+Particiones</div>
+        </div>
+        <div class="kpi" id="kpiMGO" title="Doc+Legibilidad+Variables">
+          <h3>Gobernanza operativa</h3>
+          <div class="val" id="valMGO">0%</div>
+          <div class="foot">Doc+Legibilidad+Variables</div>
+        </div>
+        <div class="kpi" id="kpiCoher" title="1 − |perf−motores|">
+          <h3>Coherencia Perf↔Motores</h3>
+          <div class="val" id="valCoher">0%</div>
+          <div class="foot">1 − CV (desv/mean)</div>
+        </div>
+        <div class="kpi" id="kpiBalance" title="Equilibrio entre categorías">
+          <h3>Balance entre categorías</h3>
+          <div class="val" id="valBalance">0%</div>
+          <div class="foot">1 − CV (desv/mean)</div>
+        </div>
+        <div class="kpi" id="kpiCriticos" title="% de checks críticos cumplidos">
+          <h3>Cobertura de críticos</h3>
+          <div class="val" id="valCriticos">0%</div>
+          <div class="foot" id="footCriticos">0/0</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ASIDE CONTROL -->
+    <aside class="card">
+      <div class="row" style="margin-bottom:8px"><span class="sub">Score total</span><span id="scoreLabel" class="score">0</span></div>
+      <div class="bar-wrap" aria-label="Progreso total"><div id="scoreBar" class="bar" style="width:0%"></div></div>
+
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:12px">
+        <div class="pill"><span>Checks</span><b id="checkedCount">0</b></div>
+        <div class="pill"><span>Peso aplicado</span><b id="weightApplied">0</b></div>
+      </div>
+
+      <div class="card" style="margin-top:12px; padding:12px">
+        <div class="row" style="margin-bottom:6px"><strong>Mínimos críticos</strong><span class="pill" id="gatesStatus"><span>—</span></span></div>
+        <ul id="gatesList" style="margin:0; padding-left:18px" class="muted"></ul>
+      </div>
+
+      <div class="card" style="margin-top:12px; padding:12px">
+        <div class="row" style="margin-bottom:6px"><strong>Pesos por categoría</strong><span class="pill">se normalizan a 100</span></div>
+        <div id="weightsPanel" style="display:grid; gap:8px"></div>
+        <div class="row" style="margin-top:8px">
+          <button class="btn" id="resetWeights">Restaurar pesos</button>
+          <span class="pill">Suma: <b id="weightsSum">0</b></span>
+        </div>
+      </div>
+
+      <div class="card" style="margin-top:12px; padding:12px">
+        <div class="grid-2" style="display:grid; grid-template-columns:1fr 1fr; gap:12px">
+          <div>
+            <label class="sub">Proyecto</label>
+            <input id="projectName" class="ghost-input" placeholder="Nombre del proyecto"/>
+          </div>
+          <div>
+            <label class="sub">Auditor</label>
+            <input id="auditorName" class="ghost-input" placeholder="Tu nombre"/>
+          </div>
+        </div>
+        <div style="margin-top:8px">
+          <label class="sub">Notas</label>
+          <textarea id="notes" rows="4" placeholder="Observaciones, riesgos, acciones…"></textarea>
+        </div>
+        <div class="row no-print" style="margin-top:10px; gap:8px; flex-wrap:wrap">
+          <button class="btn" id="resetBtn">Reiniciar checks</button>
+          <button class="btn primary" id="exportBtn">Exportar CSV</button>
+          <button class="btn success" id="pdfBtn">Reporte PDF</button>
+        </div>
+      </div>
+
+      <div class="card" style="margin-top:12px; padding:12px">
+        <strong>Visualizaciones</strong>
+        <div style="margin-top:8px"><canvas id="chartRadar" height="240"></canvas></div>
+        <div style="margin-top:12px"><canvas id="chartBar" height="200"></canvas></div>
+      </div>
+    </aside>
+
+    <!-- FORMULARIO (se conserva) -->
+    <section id="form" class="card"><!-- se inyecta dinámicamente --></section>
+
+    <!-- PLAN DE ACCIÓN (debajo del formulario) -->
+    <section class="card plan" id="planBox">
+  <h3>Plan de Acción</h3>
+  <div class="row no-print" style="gap:8px; margin-bottom:8px">
+    <button class="btn primary" id="btnPlan">Generar plan</button>
+    <button class="btn" id="btnCopy" disabled>Copiar</button>
+    <button class="btn" id="btnDownload" disabled>Descargar .txt</button> 
+  </div>
+  
+  <p style="text-align: justify;  margin-bottom: 12px;">
+    Aquí se generará automáticamente un <b>plan de acción priorizado</b>, 
+    basado en los resultados del formulario. 
+    El entregable resume las <b>acciones clave</b> con sus plazos sugeridos 
+    (2 semanas, 30 días, 90 días) y se apoya en los KPIs críticos para 
+    tomar decisiones rápidas y fundamentadas.
+  </p>
+  
+  <p style="text-align: justify;  margin-bottom: 16px;">
+    Además, se genera un <b>prompt especializado</b> para ChatGPT que utiliza 
+    los datos del diagnóstico. Este prompt permite obtener una 
+    <i>evaluación narrativa de madurez</i>, entendible por perfiles no técnicos, 
+    y está listo para copiar y usar en cualquier asistente compatible. 
+    Puedes exportar ambos resultados en formato <b>TXT</b> para compartir 
+    o documentar avances.
+  </p>
+  
+  <textarea id="planText" spellcheck="false" placeholder="Aquí aparecerá el plan generado…"></textarea>
+</section>
+
+<!-- INTRODUCCIÓN Y GUÍA (rediseñada) -->
+    <section class="card intro" style="grid-column:1 / -1">
+      <div class="intro-hero">
+        <h2>¿Por qué usar este diagnóstico en Dataiku?</h2>
+        <p class="lead" style="text-align: justify; ">
+  Este formulario interactivo permite auditar y optimizar proyectos en Dataiku de manera ágil y estructurada. 
+  A partir de checks guiados, genera un score global, verifica mínimos críticos (gates) 
+  y calcula métricas clave como cobertura, cumplimiento high, 
+  eficiencia técnica y riesgo operativo. 
+  Además, produce un plan de acción priorizado, exportable en CSV o PDF, 
+  para decisiones rápidas y mejor gobernanza.
+</p>
+      </div>
+
+      <div class="intro-grid">
+        <div class="intro-block">
+  <h3>Objetivo</h3>
+  <p style="text-align: justify">
+    Evaluar con mínima fricción el estado de un proyecto en Dataiku. 
+    El diagnóstico entrega un score global, verifica mínimos críticos (gates) 
+    y genera un plan de acción priorizado por severidad.
+  </p>
+
+  <p style="text-align: justify">
+    En la mayoría de las organizaciones, los proyectos de analítica y machine learning 
+    se construyen rápido, pero rara vez se auditan con la misma velocidad. 
+    Esto abre la puerta a riesgos ocultos: sobrecostos en cómputo, problemas de escalabilidad 
+    y fallas de gobernanza que aparecen cuando el proyecto ya está en producción.
+  </p>
+
+  <p style="text-align: justify">
+    Para enfrentar este desafío, presentamos el <i>Formulario de Optimización en Dataiku</i>, 
+    una herramienta práctica que en menos de una hora permite obtener:
+  </p>
+
+  <ul style="text-align: justify; margin-left: 1.5rem;">
+    <li><b>KPIs de madurez técnica y operativa</b>: eficiencia de motores, gobernanza de proyectos, 
+        cobertura de críticos, balance entre categorías y un índice de riesgo operativo consolidado.</li>
+    <li><b>Plan de acción inmediato y priorizado</b>: incluye las 5 acciones más urgentes, 
+        con su severidad, plazos sugeridos y responsabilidades (RACI).</li>
+    <li><b>Reporte descargable (PDF/CSV)</b>: evidencia tangible para auditorías internas, 
+        comités de TI o negociaciones con proveedores.</li>
+  </ul>
+</div>
+
+
+        <div class="intro-block">
+          <h3>Métricas clave</h3>
+          <ul class="intro-metrics">
+            <li><b>Cobertura:</b> % de ítems evaluados.</li>
+            <li><b>Cumplimiento High:</b> % de ítems de severidad alta cumplidos.</li>
+            <li><b>Gates (mínimos críticos):</b> requisitos por áreas clave.</li>
+            <li><b>Índice de Riesgo Operativo (IRO):</b> 0–100; menor es mejor.</li>
+            <li><b>Brecha vs Benchmark:</b> diferencia media vs umbral objetivo.</li>
+            <li><b>Eficiencia técnica (SEF):</b> motores, pipelines y particiones.</li>
+            <li><b>Gobernanza operativa (MGO):</b> documentación, legibilidad y variables.</li>
+            <li><b>Coherencia Perf↔Motores:</b> alineación rendimiento–motor.</li>
+            <li><b>Balance entre categorías:</b> equilibrio del avance (1 − CV).</li>
+            <li><b>Cobertura de críticos:</b> % de checks críticos cumplidos.</li>
+          </ul>
+        </div>
+
+        <div class="intro-block">
+          <h3>Valor para la práctica</h3>
+          <p>Toma decisiones <b>go/no-go</b> en minutos, prioriza lo crítico, fomenta <b>pushdown</b> y particionado para eficiencia, y consolida <b>gobernanza</b> para continuidad operativa.</p>
+        </div>
+      </div>
+
+      <div class="intro-hint">
+        <span class="pill">Sugerencia</span>
+        <p>Usa el plan generado como checklist de sprint: marca avances y regenera para ver el impacto en KPIs e IRO.</p>
+      </div>
+    </section>
+
+
+
+  </main>
+</body>
+</html>
